@@ -1,20 +1,24 @@
 const ethers = require('ethers');
 require('dotenv').config();
 
+const contractName = 'TicTacToe';
+const url = process.env.ALCHEMY_RINKEBY_URL;
+const privateKey = process.env.RINKEBY_PRIVATE_KEY;
+
 async function main() {
-  const url = process.env.ALCHEMY_RINKEBY_URL;
-  let artifacts = await hre.artifacts.readArtifact('Greeter');
+  let artifacts = await hre.artifacts.readArtifact(contractName);
   const provider = new ethers.providers.JsonRpcProvider(url);
-  let privateKey = process.env.RINKEBY_PRIVATE_KEY;
-  let wallet = new ethers.Wallet(privateKey, provider);
-  let factory = new ethers.ContractFactory(
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const factory = new ethers.ContractFactory(
     artifacts.abi,
     artifacts.bytecode,
     wallet
   );
-  let greeter = await factory.deploy('Hahaha');
-  console.log('Greeter address:', greeter.address);
-  await greeter.deployed();
+  const contract = await factory.deploy({
+    value: ethers.utils.parseEther('0.01'),
+  });
+  await contract.deployed();
+  console.log('Contract address:', contract.address);
 }
 
 main()
