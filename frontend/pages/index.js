@@ -103,11 +103,7 @@ const Cell = ({ row, col, value, handleClick }) => {
   );
 };
 
-// TODO craete game
-// TODO join as one of the sides
-// TODO get game by id
-// TODO get stake
+// TODO write tests
+// TODO deploy contract
+// TODO integrate frontend
 // TODO
-// TODO check if game is full before allowing joining
-// TODO send money back if draw
-// TODO have many games in one contract
