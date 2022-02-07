@@ -14,11 +14,10 @@ async function main() {
     artifacts.bytecode,
     wallet
   );
-  const contract = await factory.deploy({
-    value: ethers.utils.parseEther('0.01'),
-  });
+  const contract = await factory.deploy();
   await contract.deployed();
   console.log('Contract address:', contract.address);
+  console.log(contract);
 }
 
 main()

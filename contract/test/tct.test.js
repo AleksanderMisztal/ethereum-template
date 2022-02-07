@@ -66,4 +66,34 @@ describe('TicTacToe', function () {
 
     expect(winner).to.equal(1);
   });
+
+  it('Should make a draw when the board is full', async () => {
+    let winner = undefined;
+    tct1.on('Win', (gid, _winner) => {
+      console.log(`Win triggered! Winner: ${_winner}`);
+      winner = _winner;
+    });
+
+    await tct1.move(gameId, 0, 0);
+    await tct2.move(gameId, 0, 1);
+
+    await tct1.move(gameId, 0, 2);
+    await tct2.move(gameId, 1, 1);
+
+    await tct1.move(gameId, 1, 0);
+    await tct2.move(gameId, 1, 2);
+
+    await tct1.move(gameId, 2, 1);
+    await tct2.move(gameId, 2, 0);
+
+    await tct1.move(gameId, 2, 2);
+
+    await sleep(5);
+
+    expect(winner).to.equal(0);
+  });
 });
+
+// oxo
+// oxx
+// xoo

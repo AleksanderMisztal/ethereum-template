@@ -1,29 +1,28 @@
 import { ethers } from 'ethers';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import useToggle from '../hooks/useToggle';
 import contractInfo from '../contracts/tictactoe.json';
-import Board from '../components/board.js';
+import Button from '../components/Button';
+import Grid from '../components/Grid';
 
-const address = '0x3E7122c1E87Fff1548eA6ba4D5F5b6FA4ABFb2C8';
+const address = '0x9eb26aE40A3FED927081F5fd1016e3f8ca400BeB';
 const provider = new ethers.providers.EtherscanProvider(
   'rinkeby',
   'KKMPFTWZ61DA2QI966FMGZDINQS9TCTQKV'
 );
 let contract = new ethers.Contract(address, contractInfo.abi, provider);
 
-export default function Home() {
-  const [board, setBoard] = useState([
-    [0, 0, 0],
-    [0, 0, 0],
-    [0, 0, 0],
-  ]);
-  const [stake, setStake] = useState(0);
-  useEffect(() => {
-    async function getGame() {
-      setBoard(await contract.getBoard());
-      const stake = await provider.getBalance(contract.address);
-      setStake(stake);
-    }
+const cross = <i className="fas fa-times"></i>;
+const circle = <i className="far fa-circle"></i>;
 
+export default function Home() {
+  const [address, setAddress] = useState('');
+  const [gameId, setGameId] = useState(0);
+  const [game, setGame] = useState(undefined);
+  const [joinAsCircle, toggleJoinAsCircle] = useToggle();
+  const [pendingTx, setPendingTx] = useState('');
+
+  useEffect(() => {
     async function getMetamask() {
       const provider = new ethers.providers.Web3Provider(
         window.ethereum,
@@ -33,77 +32,141 @@ export default function Home() {
       await provider.send('eth_requestAccounts', []);
       const signer = provider.getSigner();
       contract = contract.connect(signer);
-      console.log('Account:', await signer.getAddress());
+      const address = await signer.getAddress();
+      setAddress(address);
+      contract.on('Join', async (gameId, asCircle, player) => {
+        console.log('Join event xd', { gameId, asCircle, player });
+        setGame(await contract.getGame(gameId));
+      });
+      contract.on('Move', async (gameId, symbol, x, y) => {
+        console.log('Move event haha', { gameId, symbol, x, y });
+        setGame(await contract.getGame(gameId));
+      });
+      contract.on('Win', async (gameId, winner) => {
+        console.log('Win event', { gameId, winner });
+        setGame(await contract.getGame(gameId));
+      });
     }
 
-    getGame();
+    async function getGame() {
+      setGame(await contract.getGame(gameId));
+    }
+
     getMetamask();
+    getGame();
   }, []);
 
-  const joinGame = async () => {
-    const tx = await contract.join({ value: stake });
-    await tx.wait();
-    console.log('Succesfully joined');
+  const withToast = async (message, body) => {
+    setPendingTx(message);
+    try {
+      await body();
+    } catch (e) {
+      console.error(e.error);
+    }
+    setPendingTx('');
   };
 
-  const makeMove = async (x, y) => {
-    const tx = await contract.move(x, y);
-    await tx.wait();
-    setBoard(await contract.getBoard());
-    console.log('Succesfully made a move!');
+  const createGame = (stake) =>
+    withToast('Creating game', async () => {
+      const gameId = (await contract.gameCount()).toString();
+      await (await contract.createGame(gameId, stake)).wait();
+      await switchGame(gameId);
+    });
+
+  const switchGame = async (gameId) => {
+    setGameId(gameId);
+    const game = await contract.getGame(gameId);
+    setGame(game);
   };
 
-  const handleClick = async (row, col) => {
-    console.log({ row, col });
-    await makeMove(row, col);
-  };
+  const joinGame = () =>
+    withToast(`Joining game ${gameId}`, async () => {
+      await (
+        await contract.join(gameId, joinAsCircle, {
+          value: game.stake,
+        })
+      ).wait();
+    });
+
+  const makeMove = (x, y) =>
+    withToast('Making a move', async () => {
+      await (await contract.move(gameId, x, y)).wait();
+      setGame(await contract.getGame(gameId));
+    });
 
   return (
-    <div className="text-center bg-slate-500 container mx-auto max-w-lg">
-      <h1 className="bg-red-600">
-        Hi haha. Stake: {ethers.utils.formatEther(stake)}
-      </h1>
-      <button className="m-3 bg-yellow-400" onClick={joinGame}>
-        Join game
-      </button>
-      <Board board={board} />
-      <Grid values={board} handleClick={handleClick} />
+    <div className="container mx-auto max-w-lg">
+      <div className="xl:absolute top-2 right-2 ">
+        <div className="bg-green-400 rounded-lg px-2 text-gray-700 my-2 xl:my-0">
+          Connected address: <br />
+          {address}
+        </div>
+        {pendingTx && (
+          <div className="bg-green-400 rounded-lg px-2 text-gray-700 my-2">
+            Pending transaction: {pendingTx}. Please wait...
+          </div>
+        )}
+      </div>
+      <div className="text-center shadow-lg bg-slate-50 rounded-lg my-2 p-2">
+        Current game id: {gameId} <br />
+        {game && game.stake > 0 && (
+          <>
+            Stake: {ethers.utils.formatEther(game.stake)}
+            <br />
+            {circle}: {game.pCircle}
+            <br />
+            {cross}: {game.pCross}
+            <br />
+            {game.ended
+              ? 'Game has ended'
+              : 'Next move:' + (game.crossNext ? 'cross' : 'circle')}
+          </>
+        )}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            createGame(e.target.stake.value);
+            e.target.reset();
+          }}
+        >
+          <input type="text" name="stake" id="stake" pattern="[0-9.]+" />
+          <Button type="submit">Create game</Button>
+        </form>
+        <div>
+          <Button onClick={joinGame}>Join game as</Button>
+          <button onClick={toggleJoinAsCircle}>
+            {joinAsCircle ? circle : cross}
+          </button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            switchGame(e.target.gameId.value);
+            e.target.reset();
+          }}
+        >
+          <input type="text" name="gameId" id="gameId" pattern="[0-9.]+" />
+          <Button type="submit">Switch game</Button>
+        </form>
+        {game && game.stake != 0 && (
+          <div className="bg-slate-200 mx-auto w-fit py-6 p-12 rounded">
+            Next player: {game.crossNext ? cross : circle}
+            <Grid
+              values={game.board.map((row) =>
+                row.map((c) => (c == 0 ? '' : c == 1 ? circle : cross))
+              )}
+              handleClick={makeMove}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-const Grid = ({ values, handleClick }) => {
-  return (
-    <div className="bg-slate-200">
-      <Row row={0} values={values[0]} handleClick={handleClick} />
-      <Row row={1} values={values[1]} handleClick={handleClick} />
-      <Row row={2} values={values[2]} handleClick={handleClick} />
-    </div>
-  );
-};
-
-const Row = ({ row, values, handleClick }) => {
-  return (
-    <div className="flex flex-row justify-center">
-      <Cell row={row} col={0} value={values[0]} handleClick={handleClick} />
-      <Cell row={row} col={1} value={values[1]} handleClick={handleClick} />
-      <Cell row={row} col={2} value={values[2]} handleClick={handleClick} />
-    </div>
-  );
-};
-
-const Cell = ({ row, col, value, handleClick }) => {
-  return (
-    <div
-      className="p-4 bg-green-300 border-green-600 border-2"
-      onClick={() => handleClick(row, col)}
-    >
-      {value}
-    </div>
-  );
-};
-
-// TODO write tests
-// TODO deploy contract
-// TODO integrate frontend
-// TODO
+// TODO connect wallet on button click
+// TODO save gameId to storage
+// TODO fuzz test
+// TODO deploy the new backend
+// TODO add tests
+// TODO setup offline development

@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 
 contract TicTacToe {
     enum Cell {Empty, Circle, Cross}
+
+    event Join(uint gameId, bool asCircle, address player);
     event Move(uint gameId, Cell symbol, uint8 x, uint8 y);
     event Win(uint gameId, Cell player);
 
@@ -21,6 +23,7 @@ contract TicTacToe {
 
     function createGame(uint gameId, uint stake) external {
         require(gameId == gameCount, "Invalid game id. Try again.");
+        require(stake > 0, "Stake must be greater than zero!");
         Cell[3][3] memory board;
         games[gameCount] = Game({
             stake: stake,
@@ -50,6 +53,8 @@ contract TicTacToe {
             require(game.pCross == address(0), "Can't join, this seat has been taken.");
             game.pCross = msg.sender;
         }
+
+        emit Join(gameId, asCircle, msg.sender);
     }
 
     function getBoard(uint gameId) public view returns (Cell[3][3] memory) {
@@ -69,6 +74,7 @@ contract TicTacToe {
         game.crossNext = !game.crossNext;
         emit Move(gameId, symbol, x, y);
         if (checkWin(game.board, symbol)) win(gameId, symbol);
+        else if (isFull(game.board)) win(gameId, Cell.Empty);
     }
 
     function checkWin(Cell[3][3] memory board, Cell s) private pure returns(bool) {
@@ -85,6 +91,13 @@ contract TicTacToe {
 
         return false;
     }
+
+    function isFull(Cell[3][3] memory board) private pure returns(bool) {
+        for (uint x = 0; x < 3; x++)
+        for (uint y = 0; y < 3; y++) {
+            if (board[x][y] == Cell.Empty) return false;
+        }
+        return true;}
 
     function win(uint gameId, Cell player) private {
         Game storage game = games[gameId];
