@@ -62,3 +62,7 @@ export default function Home() {
     </div>
   );
 }
+
+// TODO:
+// If the connected address is the exclusive owner
+// Allow them to transfer NFTs, ether, and erc20s (see teh methods on contract)
