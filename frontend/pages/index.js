@@ -1,4 +1,4 @@
-import { ethers } from 'ethers';
+import { BigNumber, ethers } from 'ethers';
 import React, { useEffect, useState } from 'react';
 import contractInfo from '../contracts/NFT_ETF.json';
 import Button from '../components/Button';
@@ -12,8 +12,8 @@ let contract = new ethers.Contract(address, contractInfo.abi, provider);
 
 export default function Home() {
   const [address, setAddress] = useState('');
-  const [balance, setBalance] = useState(0);
-  const [totalSupply, setTotalSupply] = useState(100);
+  const [balance, setBalance] = useState(BigNumber.from(0));
+  const [totalSupply, setTotalSupply] = useState(BigNumber.from(100));
 
   useEffect(() => {
     async function getMetamask() {
@@ -64,5 +64,8 @@ export default function Home() {
 }
 
 // TODO:
-// If the connected address is the exclusive owner
-// Allow them to transfer NFTs, ether, and erc20s (see teh methods on contract)
+// If the connected address is the exclusive owner,
+// allow them to transfer NFTs, ether, and erc20s (see the methods on the contract)
+// Test if the contract works as intended,
+// ie. create some dummy tokens and NFTs, transfer them to the contract,
+// try to transfer them back to the exclusive owner
